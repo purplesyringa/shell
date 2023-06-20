@@ -34,6 +34,7 @@ if [ "$PS1_MODE" == "text" ]; then
 	RETURN_FAIL="Failed"
 	HOST_TEXT="at "
 	USER_TEXT="as "
+	READONLY="R/O"
 else
 	BRANCH=""
 	NODE_PACKAGE=""
@@ -45,6 +46,7 @@ else
 	RETURN_FAIL="✗"
 	HOST_TEXT=""
 	USER_TEXT=""
+	READONLY=""
 fi
 
 INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
@@ -187,6 +189,10 @@ async_prompt() {
 		rg "^$HOME" -r "$BOLD$YELLOW~$RESET" --passthru
 	)"
 	local curdir="$(replace_home $curdir)"
+
+	if [ ! -w $PWD ]; then
+		local curdir="$RED$READONLY$RESET $curdir"
+	fi
 
 	if [[ $command_duration -gt 1000 ]]; then
 		local runtime=" $CYAN($EXEC_DURATION $(($command_duration / 1000))s)$RESET"
