@@ -3,7 +3,8 @@
 My dynamic replacement for the default PS1. Bash.
 
 ```
-. shell.sh
+. shell.sh                 # for nerdfont mode
+PS1_MODE=text . shell.sh   # for text mode
 ```
 
 Execute in bash shell or add to your `.bashrc`
