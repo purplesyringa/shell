@@ -26,7 +26,7 @@ if [ "$PS1_MODE" == "text" ]; then
 	NODE_INFO="using node"
 	PYTHON_PACKAGE="(python)"
 	PYTHON_INFO="using python"
-	EXEC_DURATION="took "
+	EXEC_DURATION="took"
 	RETURN_OK="OK"
 	RETURN_FAIL="Failed"
 	HOST_TEXT="at "
@@ -37,7 +37,7 @@ else
 	NODE_INFO=""
 	PYTHON_PACKAGE=""
 	PYTHON_INFO=""
-	EXEC_DURATION=""
+	EXEC_DURATION=""
 	RETURN_OK="✓"
 	RETURN_FAIL="✗"
 	HOST_TEXT=""
@@ -158,7 +158,7 @@ async_prompt() {
 	)"
 
 	if [[ $command_duration -gt 1000 ]]; then
-		local runtime=" $(printf $CYAN)($EXEC_DURATION$(($command_duration / 1000))s)$(printf $RESET)"
+		local runtime=" $(printf $CYAN)($EXEC_DURATION $(($command_duration / 1000))s)$(printf $RESET)"
 	else
 		local runtime=""
 	fi
