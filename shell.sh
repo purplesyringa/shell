@@ -30,6 +30,8 @@ if [ "$PS1_MODE" == "text" ]; then
 	EXEC_DURATION="took "
 	RETURN_OK="OK"
 	RETURN_FAIL="Failed"
+    HOST_TEXT="at "
+    USER_TEXT="as "
 else
 	BRANCH=""
 	NODE_PACKAGE=""
@@ -39,6 +41,8 @@ else
 	EXEC_DURATION=""
 	RETURN_OK="✓"
 	RETURN_FAIL="✗"
+    HOST_TEXT=""
+    USER_TEXT=""
 fi
 
 upfind() {
@@ -180,8 +184,8 @@ async_prompt() {
 		printf "$BOLD$RED%s$RESET " "$PS1_PREFIX"
 	fi
 
-	printf "$BOLD$YELLOW(%s)$RESET " "$HOSTNAME"
-	printf "$BOLD$BLUE[%s]$RESET " "$USER"
+	printf "$BOLD$YELLOW(%s)$RESET " "$HOST_TEXT$HOSTNAME"
+	printf "$BOLD$BLUE[%s]$RESET " "$USER_TEXT$USER"
 	printf "%s" "$gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
 	printf "\x1b[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
 
