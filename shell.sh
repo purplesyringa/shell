@@ -1,25 +1,27 @@
+START_INVIS="$(echo -ne '\x01')"
+END_INVIS="$(echo -ne '\x02')"
 ESC="$(echo -ne '\e')"
 LF="$(echo -ne '\n')"
 BEL="$(echo -ne '\a')"
-BOLD="$ESC[1m"
-RED="$ESC[31m"
-GREEN="$ESC[32m"
-YELLOW="$ESC[33m"
-PURPLE="$ESC[35m"
-CYAN="$ESC[36m"
-BLUE="$ESC[38;2;0;127;240m"
-PINK="$ESC[38;2;255;100;203m"
-PYYELLOW="$ESC[38;2;255;212;59m"
-LIGHTGREEN="$ESC[38;2;100;255;100m"
-LIGHTRED="$ESC[38;2;255;80;100m"
-GREY="$ESC[38;2;128;128;128m"
-RESET="$ESC[0m"
-START_TITLE="$ESC]0;"
-END_TITLE="$BEL"
-CURSOR_SAVE="$ESC[s"
-CURSOR_RESTORE="$ESC[u"
-CURSOR_UP="$ESC[A"
-CURSOR_HOME="$ESC[G"
+BOLD="$START_INVIS$ESC[1m$END_INVIS"
+RED="$START_INVIS$ESC[31m$END_INVIS"
+GREEN="$START_INVIS$ESC[32m$END_INVIS"
+YELLOW="$START_INVIS$ESC[33m$END_INVIS"
+PURPLE="$START_INVIS$ESC[35m$END_INVIS"
+CYAN="$START_INVIS$ESC[36m$END_INVIS"
+BLUE="$START_INVIS$ESC[38;2;0;127;240m$END_INVIS"
+PINK="$START_INVIS$ESC[38;2;255;100;203m$END_INVIS"
+PYYELLOW="$START_INVIS$ESC[38;2;255;212;59m$END_INVIS"
+LIGHTGREEN="$START_INVIS$ESC[38;2;100;255;100m$END_INVIS"
+LIGHTRED="$START_INVIS$ESC[38;2;255;80;100m$END_INVIS"
+GREY="$START_INVIS$ESC[38;2;128;128;128m$END_INVIS"
+RESET="$START_INVIS$ESC[0m$END_INVIS"
+START_TITLE="$START_INVIS$ESC]0;"
+END_TITLE="$BEL$END_INVIS"
+CURSOR_SAVE="$START_INVIS$ESC[s"
+CURSOR_RESTORE="$START_INVIS$ESC[u"
+CURSOR_UP="$START_INVIS$ESC[A"
+CURSOR_HOME="$START_INVIS$ESC[G"
 
 if [ "$PS1_MODE" == "text" ]; then
 	BRANCH="on"
@@ -44,6 +46,28 @@ else
 	HOST_TEXT=""
 	USER_TEXT=""
 fi
+
+INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
+
+
+replace_home() {
+	local answer=$1
+	while IFS= read -r line; do
+		if [[ $line =~ ([^:]*):([^:]*:){4}([^:]*):([^:]*) ]] || true; then
+			local homedir="${BASH_REMATCH[3]}"
+			local username="${BASH_REMATCH[1]}"
+			local userpath="$BOLD$YELLOW~$username$RESET"
+			if [[ ! $homedir =~ $INVALID_HOMES ]]; then
+				local path="$1"
+				local stripped_path="${path#$homedir}"
+				if [[ "$stripped_path" != "$path" ]]; then
+					answer="$userpath$stripped_path"
+				fi
+			fi
+		fi
+	done < /etc/passwd
+	echo $answer
+}
 
 upfind() {
 	local path="$PWD"
@@ -160,8 +184,9 @@ async_prompt() {
 	local curdir="$(
 		( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
 		( [ -n "$gitroot" ] && rg "^($gitroot)(.*)" -r "\$1$CYAN\$2$RESET" || cat ) |
-		rg "^$HOME" -r "$BOLD$YELLOW~$RESET"
+		rg "^$HOME" -r "$BOLD$YELLOW~$RESET" --passthru
 	)"
+	local curdir="$(replace_home $curdir)"
 
 	if [[ $command_duration -gt 1000 ]]; then
 		local runtime=" $CYAN($EXEC_DURATION $(($command_duration / 1000))s)$RESET"
