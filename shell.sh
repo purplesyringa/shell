@@ -175,8 +175,7 @@ async_prompt() {
 		fi
 	fi
 
-	# TODO fix date format
-	local cur_date="$(LC_TIME=en_US.UTF-8 date)"
+    local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
 
 	printf "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
 
