@@ -146,6 +146,12 @@ async_prompt() {
 	if [ -f jr ]; then
 		local buildinfo="${buildinfo}./jr "
 	fi
+	if compgen -G "*.qbs" > /dev/null; then
+		local buildinfo="${buildinfo}qbs "
+	fi
+	if compgen -G "*.pro" > /dev/null; then
+		local buildinfo="${buildinfo}qmake "
+	fi
 	if [ -n "$buildinfo" ]; then
 		local buildinfo="$(printf $BOLD$PURPLE)[${buildinfo%?}]$(printf $RESET) "
 	fi
