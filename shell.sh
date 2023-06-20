@@ -20,6 +20,27 @@ CURSOR_RESTORE="$START_INVIS\x1b[u"
 CURSOR_UP="$START_INVIS\x1b[A"
 CURSOR_HOME="$START_INVIS\x1b[G"
 
+# TODO docs + test?
+if [ "$PS1_MODE" == "text" ]; then
+	BRANCH="on"
+	NODE_PACKAGE="(node)"
+	NODE_INFO="node"
+	PYTHON_PACKAGE="(python)"
+	PYTHON_INFO="python"
+	EXEC_DURATION="took "
+	RETURN_OK="OK"
+	RETURN_FAIL="Failed"
+else
+	BRANCH=""
+	NODE_PACKAGE=""
+	NODE_INFO=""
+	PYTHON_PACKAGE=""
+	PYTHON_INFO=""
+	EXEC_DURATION=""
+	RETURN_OK="✓"
+	RETURN_FAIL="✗"
+fi
+
 upfind() {
 	local path="$PWD"
 	while [[ "$path" != "/" ]] && [[ ! -e "$path/$1" ]]; do
@@ -58,7 +79,7 @@ async_prompt() {
 	local gitroot="$(git rev-parse --show-toplevel 2>/dev/null)"
 	if [ -n "$gitroot" ]; then
 		local branch=$(git branch | grep "^* " | sed "s/^* //")
-		local gitinfo="$(printf $BOLD$PINK)[ $branch]$(printf $RESET) "
+		local gitinfo="$(printf $BOLD$PINK)[$BRANCH $branch]$(printf $RESET) "
 	else
 		local gitinfo=""
 	fi
@@ -73,8 +94,8 @@ async_prompt() {
 			local name="unnamed"
 			local version=""
 		fi
-		local pkginfo="$(printf $BOLD$YELLOW)[ $name$version]$(printf $RESET) "
-		local nodeinfo="$pkginfo$(printf $BOLD$GREEN)[ $(nvm current | sed s/^v//)]$(printf $RESET) "
+		local pkginfo="$(printf $BOLD$YELLOW)[$NODE_PACKAGE $name$version]$(printf $RESET) "
+		local nodeinfo="$pkginfo$(printf $BOLD$GREEN)[$NODE_INFO $(nvm current | sed s/^v//)]$(printf $RESET) "
 	else
 		local nodeinfo=""
 	fi
@@ -93,14 +114,14 @@ async_prompt() {
 			local name="unnamed"
 			local version=""
 		fi
-		local pypkginfo="$(printf $BOLD$YELLOW)[ $name$version]$(printf $RESET) "
+		local pypkginfo="$(printf $BOLD$YELLOW)[$PYTHON_PACKAGE $name$version]$(printf $RESET) "
 
 		if [ -f "$VIRTUAL_ENV/venv/pyvenv.cfg" ]; then
 			local pyversion="$(grep "^version\s*=\s*" "$VIRTUAL_ENV/venv/pyvenv.cfg" | head -1 | sed s/^version\\s*=\\s*//)"
 		else
 			local pyversion="system"
 		fi
-		local pyinfo="$pkginfo$(printf $BOLD$PYYELLOW)[ $pyversion]$(printf $RESET) "
+		local pyinfo="$pkginfo$(printf $BOLD$PYYELLOW)[$PYTHON_INFO $pyversion]$(printf $RESET) "
 	else
 		local pypkginfo=""
 		local pyinfo=""
@@ -134,7 +155,7 @@ async_prompt() {
 	)"
 
 	if [[ $command_duration -gt 1000 ]]; then
-		local runtime=" $(printf $CYAN)($(($command_duration / 1000))s)$(printf $RESET)"
+		local runtime=" $(printf $CYAN)($EXEC_DURATION$(($command_duration / 1000))s)$(printf $RESET)"
 	else
 		local runtime=""
 	fi
@@ -150,6 +171,7 @@ async_prompt() {
 		fi
 	fi
 
+	# TODO fix date format
 	local cur_date="$(LC_TIME=en_US.UTF-8 date)"
 
 	printf "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
@@ -174,9 +196,9 @@ get_shell_ps1() {
 	printf "$START_TITLE%s$END_TITLE" "$PWD"
 
 	if [[ "$retcode" == "0" ]] || [[ "$retcode" == "130" ]]; then
-		local retinfo="$(printf $LIGHTGREEN)✓$(printf $RESET) "
+		local retinfo="$(printf $LIGHTGREEN)$RETURN_OK$(printf $RESET) "
 	else
-		local retinfo="$(printf $LIGHTRED)✗$(printf $RESET) "
+		local retinfo="$(printf $LIGHTRED)$RETURN_FAIL$(printf $RESET) "
 	fi
 
 	if [[ "$UID" == "0" ]]; then
