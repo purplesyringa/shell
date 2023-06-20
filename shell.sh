@@ -20,7 +20,6 @@ CURSOR_RESTORE="$START_INVIS\x1b[u"
 CURSOR_UP="$START_INVIS\x1b[A"
 CURSOR_HOME="$START_INVIS\x1b[G"
 
-# TODO docs + test?
 if [ "$PS1_MODE" == "text" ]; then
 	BRANCH="on"
 	NODE_PACKAGE="(node)"
@@ -30,8 +29,8 @@ if [ "$PS1_MODE" == "text" ]; then
 	EXEC_DURATION="took "
 	RETURN_OK="OK"
 	RETURN_FAIL="Failed"
-    HOST_TEXT="at "
-    USER_TEXT="as "
+	HOST_TEXT="at "
+	USER_TEXT="as "
 else
 	BRANCH=""
 	NODE_PACKAGE=""
@@ -41,8 +40,8 @@ else
 	EXEC_DURATION=""
 	RETURN_OK="✓"
 	RETURN_FAIL="✗"
-    HOST_TEXT=""
-    USER_TEXT=""
+	HOST_TEXT=""
+	USER_TEXT=""
 fi
 
 upfind() {
@@ -175,7 +174,7 @@ async_prompt() {
 		fi
 	fi
 
-    local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
+	local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
 
 	printf "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
 
