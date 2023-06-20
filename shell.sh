@@ -1,31 +1,32 @@
-START_INVIS="\x01"
-END_INVIS="\x02"
-BOLD="$START_INVIS\x1b[1m$END_INVIS"
-RED="$START_INVIS\x1b[31m$END_INVIS"
-GREEN="$START_INVIS\x1b[32m$END_INVIS"
-YELLOW="$START_INVIS\x1b[33m$END_INVIS"
-PURPLE="$START_INVIS\x1b[35m$END_INVIS"
-CYAN="$START_INVIS\x1b[36m$END_INVIS"
-BLUE="$START_INVIS\x1b[38;2;0;127;240m$END_INVIS"
-PINK="$START_INVIS\x1b[38;2;255;100;203m$END_INVIS"
-PYYELLOW="$START_INVIS\x1b[38;2;255;212;59m$END_INVIS"
-LIGHTGREEN="$START_INVIS\x1b[38;2;100;255;100m$END_INVIS"
-LIGHTRED="$START_INVIS\x1b[38;2;255;80;100m$END_INVIS"
-GREY="$START_INVIS\x1b[38;2;128;128;128m$END_INVIS"
-RESET="$START_INVIS\x1b[0m$END_INVIS"
-START_TITLE="$START_INVIS\x1b]0;"
-END_TITLE="\a$END_INVIS"
-CURSOR_SAVE="$START_INVIS\x1b[s"
-CURSOR_RESTORE="$START_INVIS\x1b[u"
-CURSOR_UP="$START_INVIS\x1b[A"
-CURSOR_HOME="$START_INVIS\x1b[G"
+ESC="$(echo -ne '\e')"
+LF="$(echo -ne '\n')"
+BEL="$(echo -ne '\a')"
+BOLD="$ESC[1m"
+RED="$ESC[31m"
+GREEN="$ESC[32m"
+YELLOW="$ESC[33m"
+PURPLE="$ESC[35m"
+CYAN="$ESC[36m"
+BLUE="$ESC[38;2;0;127;240m"
+PINK="$ESC[38;2;255;100;203m"
+PYYELLOW="$ESC[38;2;255;212;59m"
+LIGHTGREEN="$ESC[38;2;100;255;100m"
+LIGHTRED="$ESC[38;2;255;80;100m"
+GREY="$ESC[38;2;128;128;128m"
+RESET="$ESC[0m"
+START_TITLE="$ESC]0;"
+END_TITLE="$BEL"
+CURSOR_SAVE="$ESC[s"
+CURSOR_RESTORE="$ESC[u"
+CURSOR_UP="$ESC[A"
+CURSOR_HOME="$ESC[G"
 
 if [ "$PS1_MODE" == "text" ]; then
 	BRANCH="on"
-	NODE_PACKAGE="(node)"
-	NODE_INFO="using node"
-	PYTHON_PACKAGE="(python)"
-	PYTHON_INFO="using python"
+	NODE_PACKAGE="node:"
+	NODE_INFO="node"
+	PYTHON_PACKAGE="py:"
+	PYTHON_INFO="py"
 	EXEC_DURATION="took"
 	RETURN_OK="OK"
 	RETURN_FAIL="Failed"
@@ -81,8 +82,8 @@ async_prompt() {
 
 	local gitroot="$(git rev-parse --show-toplevel 2>/dev/null)"
 	if [ -n "$gitroot" ]; then
-		local branch=$(git branch | grep "^* " | sed "s/^* //")
-		local gitinfo="$(printf $BOLD$PINK)[$BRANCH $branch]$(printf $RESET) "
+		local branch=$(git branch | rg "^\* " -r "")
+		local gitinfo="$BOLD$PINK[$BRANCH $branch]$RESET "
 	else
 		local gitinfo=""
 	fi
@@ -97,8 +98,8 @@ async_prompt() {
 			local name="unnamed"
 			local version=""
 		fi
-		local pkginfo="$(printf $BOLD$YELLOW)[$NODE_PACKAGE $name$version]$(printf $RESET) "
-		local nodeinfo="$pkginfo$(printf $BOLD$GREEN)[$NODE_INFO $(nvm current | sed s/^v//)]$(printf $RESET) "
+		local pkginfo="$BOLD$YELLOW[$NODE_PACKAGE $name$version]$RESET "
+		local nodeinfo="$pkginfo$BOLD$GREEN[$NODE_INFO $(nvm current | sed s/^v//)]$RESET "
 	else
 		local nodeinfo=""
 	fi
@@ -108,8 +109,8 @@ async_prompt() {
 	local requirements_txt="$(upfind "requirements.txt")"
 	if [ -n "$setup_py" ] || [ -n "$requirements_txt" ]; then
 		if [ -n "$setup_py" ]; then
-			local name="$(grep "^\s*name\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*name\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
-			local version="$(grep "^\s*version\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*version\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
+			local name="$(rg "name=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
+			local version="$(rg "version=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
 			if [ -n "$version" ]; then
 				local version=" $version"
 			fi
@@ -117,14 +118,14 @@ async_prompt() {
 			local name="unnamed"
 			local version=""
 		fi
-		local pypkginfo="$(printf $BOLD$YELLOW)[$PYTHON_PACKAGE $name$version]$(printf $RESET) "
+		local pypkginfo="$BOLD$YELLOW[$PYTHON_PACKAGE $name$version]$RESET "
 
-		if [ -f "$VIRTUAL_ENV/venv/pyvenv.cfg" ]; then
-			local pyversion="$(grep "^version\s*=\s*" "$VIRTUAL_ENV/venv/pyvenv.cfg" | head -1 | sed s/^version\\s*=\\s*//)"
+		if [ -f "$VIRTUAL_ENV/pyvenv.cfg" ]; then
+			local pyversion="$(rg 'version\s*=\s*' "$VIRTUAL_ENV/pyvenv.cfg" -r '' -m 1)"
 		else
 			local pyversion="system"
 		fi
-		local pyinfo="$pkginfo$(printf $BOLD$PYYELLOW)[$PYTHON_INFO $pyversion]$(printf $RESET) "
+		local pyinfo="$pkginfo$BOLD$PYYELLOW[$PYTHON_INFO $pyversion]$RESET "
 	else
 		local pypkginfo=""
 		local pyinfo=""
@@ -153,18 +154,17 @@ async_prompt() {
 		local buildinfo="${buildinfo}qmake "
 	fi
 	if [ -n "$buildinfo" ]; then
-		local buildinfo="$(printf $BOLD$PURPLE)[${buildinfo%?}]$(printf $RESET) "
+		local buildinfo="$BOLD$PURPLE[${buildinfo%?}]$RESET "
 	fi
 
 	local curdir="$(
 		( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
-		( [ -n "$gitroot" ] && sed -E "s|^($gitroot)(.*)|\1$CYAN\2$RESET|" || cat ) |
-		sed -E "s|^$HOME|$BOLD$YELLOW~$RESET|" |
-		sed -E "s|^/home/([^/]*)|$BOLD$YELLOW~\\1$RESET|"
+		( [ -n "$gitroot" ] && rg "^($gitroot)(.*)" -r "\$1$CYAN\$2$RESET" || cat ) |
+		rg "^$HOME" -r "$BOLD$YELLOW~$RESET"
 	)"
 
 	if [[ $command_duration -gt 1000 ]]; then
-		local runtime=" $(printf $CYAN)($EXEC_DURATION $(($command_duration / 1000))s)$(printf $RESET)"
+		local runtime=" $CYAN($EXEC_DURATION $(($command_duration / 1000))s)$RESET"
 	else
 		local runtime=""
 	fi
@@ -174,26 +174,25 @@ async_prompt() {
 		local jobinfo=""
 	else
 		if [[ "$jobs" == "1" ]]; then
-			local jobinfo="$(printf $BOLD$GREEN)[1 job]$(printf $RESET) "
+			local jobinfo="$BOLD$GREEN[1 job]$RESET "
 		else
-			local jobinfo="$(printf $BOLD$GREEN)[$jobs jobs]$(printf $RESET) "
+			local jobinfo="$BOLD$GREEN[$jobs jobs]$RESET "
 		fi
 	fi
 
 	local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
 
-	printf "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
+	echo -n "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
 
 	if [ -n "$PS1_PREFIX" ]; then
-		printf "$BOLD$RED%s$RESET " "$PS1_PREFIX"
+		echo -n "$BOLD$RED$PS1_PREFIX$RESET "
 	fi
 
-	printf "$BOLD$YELLOW(%s)$RESET " "$HOST_TEXT$HOSTNAME"
-	printf "$BOLD$BLUE[%s]$RESET " "$USER_TEXT$USER"
-	printf "%s" "$gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
-	printf "\x1b[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
+	echo -n "$BOLD$YELLOW($HOST_TEXT$HOSTNAME)$RESET $BOLD$BLUE[$USER_TEXT$USER]$RESET "
+	echo -n "$gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
+	echo -n "$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
 
-	printf "$CURSOR_RESTORE"
+	echo -n "$CURSOR_RESTORE"
 
 	rm "/tmp/asyncpromptpid$$"
 }
@@ -201,12 +200,12 @@ async_prompt() {
 get_shell_ps1() {
 	local retcode="$?"
 
-	printf "$START_TITLE%s$END_TITLE" "$PWD"
+	echo -n "$START_TITLE$PWD$END_TITLE"
 
 	if [[ "$retcode" == "0" ]] || [[ "$retcode" == "130" ]]; then
-		local retinfo="$(printf $LIGHTGREEN)$RETURN_OK$(printf $RESET) "
+		local retinfo="$LIGHTGREEN$RETURN_OK$RESET "
 	else
-		local retinfo="$(printf $LIGHTRED)$RETURN_FAIL$(printf $RESET) "
+		local retinfo="$LIGHTRED$RETURN_FAIL$RESET "
 	fi
 
 	if [[ "$UID" == "0" ]]; then
