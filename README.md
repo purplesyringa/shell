@@ -13,6 +13,8 @@ Execute in bash shell or add to your `.bashrc`.
 
 Two modes are available --- "nerdfont" and "text", former is default, latter is toggled by setting `PS1_MODE=text` before applying prompt.
 
+Can use ripgrep if available (default), or if passed `PS1_RG=none` (anything other than `ok` does the job too) uses grep+sed.
+
 ## What does
 
 Pure bash (kind of) implementation of "git status into PS1" which does not break on empty repos; output format taken from [p10k](https://github.com/romkatv/powerlevel10k).
