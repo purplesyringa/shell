@@ -55,7 +55,7 @@ INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
 replace_home() {
 	local answer=$1
 	while IFS= read -r line; do
-		if [[ $line =~ ([^:]*):([^:]*:){4}([^:]*):([^:]*) ]] || true; then
+		if [[ $line =~ ([^:]*):([^:]*:){4}([^:]*):([^:]*) ]]; then
 			local homedir="${BASH_REMATCH[3]}"
 			local username="${BASH_REMATCH[1]}"
 			local userpath="$BOLD$YELLOW~$username$RESET"
@@ -108,8 +108,86 @@ async_prompt() {
 
 	local gitroot="$(git rev-parse --show-toplevel 2>/dev/null)"
 	if [ -n "$gitroot" ]; then
-		local branch=$(git branch | rg "^\* " -r "")
-		local gitinfo="$BOLD$PINK[$BRANCH $branch]$RESET "
+		# thanks to
+		#   https://git-scm.com/docs/git-status
+		#   https://github.com/romkatv/powerlevel10k
+		# feature[:master] v1^2 *3 ~4 +5 !6 ?7
+		#   (feature) Current LOCAL branch                     -> # branch.head <name>
+		#   (master) Remote branch IF DIFFERENT and not null   -> # branch.upstream <origin>/<name>
+		#   1 commit behind, 2 commits ahead                   -> # branch.ab +<ahead> -<behind>
+		#   3 stashes           -> # stash <count>
+		#   4 unmerged    -> XX
+		#   5 staged      -> X.
+		#   6 unstaged    -> .X
+		#   7 untracked   -> ?
+
+		local current=""
+		local remote=""
+		local behind=0
+		local ahead=0
+		local stashes=0
+		local unmerged=0
+		local staged=0
+		local unstaged=0
+		local untracked=0
+
+		while IFS= read -a line; do
+			if [[ $line =~ ^'?' ]]; then
+				untracked=$((untracked + 1))
+			elif [[ $line =~ ^[12]\ (AA|AU|DD|DU|UA|UD|UU) ]]; then
+				unmerged=$((unmerged + 1))
+			elif [[ $line =~ ^[12]\ [MTADRC]\. ]]; then
+				staged=$((staged + 1))
+			elif [[ $line =~ ^[12]\ [\.MTADRCU]{2} ]]; then
+				unstaged=$((unstaged + 1))
+			elif [[ $line =~ ^#\ (.*) ]]; then
+				local rest=${BASH_REMATCH[1]}
+				if [[ $rest =~ ^stash\ ([0-9]+) ]]; then
+					stashes=${BASH_REMATCH[1]}
+				elif [[ $rest =~ ^branch\.([^ ]+)\ (.*) ]]; then
+					local cmd=${BASH_REMATCH[1]}
+					local arg=${BASH_REMATCH[2]}
+					if [[ "$cmd" == "head" ]]; then
+						current=$arg
+					elif [[ "$cmd" == "upstream" ]]; then
+						remote=${arg//[^'/']*'/'/}
+					elif [[ "$cmd" == "ab" ]] && [[ $arg =~ .([0-9]+)\ .([0-9]+) ]]; then
+						ahead="${BASH_REMATCH[1]}"
+						behind="${BASH_REMATCH[2]}"
+					fi
+				fi
+			fi
+		done < <(git status --porcelain=2 --branch --show-stash);
+
+		local gitinfo="$BOLD$PINK[";
+		if [[ -n $current ]]; then
+			local gitinfo="$gitinfo$current"
+		fi
+		if [[ $remote != $current && -n $remote ]]; then
+			local gitinfo="$gitinfo:$remote"
+		fi
+		if [[ $behind != 0 ]]; then
+			local gitinfo="$gitinfo v$behind"
+		fi
+		if [[ $ahead != 0 ]]; then
+			local gitinfo="$gitinfo ^$ahead"
+		fi
+		if [[ $stashes != 0 ]]; then
+			local gitinfo="$gitinfo *$stashes"
+		fi
+		if [[ $unmerged != 0 ]]; then
+			local gitinfo="$gitinfo ~$unmerged"
+		fi
+		if [[ $staged != 0 ]]; then
+			local gitinfo="$gitinfo +$staged"
+		fi
+		if [[ $unstaged != 0 ]]; then
+			local gitinfo="$gitinfo !$unstaged"
+		fi
+		if [[ $untracked != 0 ]]; then
+			local gitinfo="$gitinfo ?$untracked"
+		fi
+		local gitinfo="$gitinfo]$RESET "
 	else
 		local gitinfo=""
 	fi
