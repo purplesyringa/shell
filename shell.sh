@@ -1,36 +1,48 @@
-START_INVIS="\x01"
-END_INVIS="\x02"
-BOLD="$START_INVIS\x1b[1m$END_INVIS"
-RED="$START_INVIS\x1b[31m$END_INVIS"
-GREEN="$START_INVIS\x1b[32m$END_INVIS"
-YELLOW="$START_INVIS\x1b[33m$END_INVIS"
-PURPLE="$START_INVIS\x1b[35m$END_INVIS"
-CYAN="$START_INVIS\x1b[36m$END_INVIS"
-BLUE="$START_INVIS\x1b[38;2;0;127;240m$END_INVIS"
-PINK="$START_INVIS\x1b[38;2;255;100;203m$END_INVIS"
-PYYELLOW="$START_INVIS\x1b[38;2;255;212;59m$END_INVIS"
-LIGHTGREEN="$START_INVIS\x1b[38;2;100;255;100m$END_INVIS"
-LIGHTRED="$START_INVIS\x1b[38;2;255;80;100m$END_INVIS"
-GREY="$START_INVIS\x1b[38;2;128;128;128m$END_INVIS"
-RESET="$START_INVIS\x1b[0m$END_INVIS"
-START_TITLE="$START_INVIS\x1b]0;"
-END_TITLE="\a$END_INVIS"
-CURSOR_SAVE="$START_INVIS\x1b[s"
-CURSOR_RESTORE="$START_INVIS\x1b[u"
-CURSOR_UP="$START_INVIS\x1b[A"
-CURSOR_HOME="$START_INVIS\x1b[G"
+START_INVIS="$(echo -ne '\x01')"
+END_INVIS="$(echo -ne '\x02')"
+ESC="$(echo -ne '\e')"
+LF="$(echo -ne '\n')"
+BEL="$(echo -ne '\a')"
+BOLD="$START_INVIS$ESC[1m$END_INVIS"
+RED="$START_INVIS$ESC[31m$END_INVIS"
+GREEN="$START_INVIS$ESC[32m$END_INVIS"
+YELLOW="$START_INVIS$ESC[33m$END_INVIS"
+PURPLE="$START_INVIS$ESC[35m$END_INVIS"
+CYAN="$START_INVIS$ESC[36m$END_INVIS"
+BLUE="$START_INVIS$ESC[38;2;0;127;240m$END_INVIS"
+PINK="$START_INVIS$ESC[38;2;255;100;203m$END_INVIS"
+PYYELLOW="$START_INVIS$ESC[38;2;255;212;59m$END_INVIS"
+LIGHTGREEN="$START_INVIS$ESC[38;2;100;255;100m$END_INVIS"
+LIGHTRED="$START_INVIS$ESC[38;2;255;80;100m$END_INVIS"
+GREY="$START_INVIS$ESC[38;2;128;128;128m$END_INVIS"
+RESET="$START_INVIS$ESC[0m$END_INVIS"
+START_TITLE="$START_INVIS$ESC]0;"
+END_TITLE="$BEL$END_INVIS"
+CURSOR_SAVE="$START_INVIS$ESC[s"
+CURSOR_RESTORE="$START_INVIS$ESC[u"
+CURSOR_UP="$START_INVIS$ESC[A"
+CURSOR_HOME="$START_INVIS$ESC[G"
+
+if [[ -z $PS1_RG ]] && (echo 1 | rg 1 >/dev/null); then
+	PS1_RG=ok
+fi
+# echo rg-mode $PS1_RG.
+# if [[ "$PS1_RG" == "ok" ]]; then
+# 	echo ripgrep IS used
+# fi
 
 if [ "$PS1_MODE" == "text" ]; then
 	BRANCH="on"
-	NODE_PACKAGE="(node)"
-	NODE_INFO="using node"
-	PYTHON_PACKAGE="(python)"
-	PYTHON_INFO="using python"
+	NODE_PACKAGE="node:"
+	NODE_INFO="node"
+	PYTHON_PACKAGE="py:"
+	PYTHON_INFO="py"
 	EXEC_DURATION="took"
 	RETURN_OK="OK"
 	RETURN_FAIL="Failed"
 	HOST_TEXT="at "
 	USER_TEXT="as "
+	READONLY="R/O"
 else
 	BRANCH=""
 	NODE_PACKAGE=""
@@ -42,7 +54,30 @@ else
 	RETURN_FAIL="✗"
 	HOST_TEXT=""
 	USER_TEXT=""
+	READONLY=""
 fi
+
+INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
+
+
+replace_home() {
+	local answer=$1
+	while IFS= read -r line; do
+		if [[ $line =~ ([^:]*):([^:]*:){4}([^:]*):([^:]*) ]]; then
+			local homedir="${BASH_REMATCH[3]}"
+			local username="${BASH_REMATCH[1]}"
+			local userpath="$BOLD$YELLOW~$username$RESET"
+			if [[ ! $homedir =~ $INVALID_HOMES ]]; then
+				local path="$1"
+				local stripped_path="${path#$homedir}"
+				if [[ "$stripped_path" != "$path" ]]; then
+					answer="$userpath$stripped_path"
+				fi
+			fi
+		fi
+	done < /etc/passwd
+	echo $answer
+}
 
 upfind() {
 	local path="$PWD"
@@ -77,12 +112,92 @@ update_info() {
 }
 
 async_prompt() {
+	local PS1_RG=$1
+
 	exec >&2
 
 	local gitroot="$(git rev-parse --show-toplevel 2>/dev/null)"
 	if [ -n "$gitroot" ]; then
-		local branch=$(git branch | grep "^* " | sed "s/^* //")
-		local gitinfo="$(printf $BOLD$PINK)[$BRANCH $branch]$(printf $RESET) "
+		# thanks to
+		#   https://git-scm.com/docs/git-status
+		#   https://github.com/romkatv/powerlevel10k
+		# feature[:master] v1^2 *3 ~4 +5 !6 ?7
+		#   (feature) Current LOCAL branch                     -> # branch.head <name>
+		#   (master) Remote branch IF DIFFERENT and not null   -> # branch.upstream <origin>/<name>
+		#   1 commit behind, 2 commits ahead                   -> # branch.ab +<ahead> -<behind>
+		#   3 stashes           -> # stash <count>
+		#   4 unmerged    -> XX
+		#   5 staged      -> X.
+		#   6 unstaged    -> .X
+		#   7 untracked   -> ?
+
+		local current=""
+		local remote=""
+		local behind=0
+		local ahead=0
+		local stashes=0
+		local unmerged=0
+		local staged=0
+		local unstaged=0
+		local untracked=0
+
+		while IFS= read -a line; do
+			if [[ $line =~ ^'?' ]]; then
+				untracked=$((untracked + 1))
+			elif [[ $line =~ ^[12]\ (AA|AU|DD|DU|UA|UD|UU) ]]; then
+				unmerged=$((unmerged + 1))
+			elif [[ $line =~ ^[12]\ [MTADRC]\. ]]; then
+				staged=$((staged + 1))
+			elif [[ $line =~ ^[12]\ [\.MTADRCU]{2} ]]; then
+				unstaged=$((unstaged + 1))
+			elif [[ $line =~ ^#\ (.*) ]]; then
+				local rest=${BASH_REMATCH[1]}
+				if [[ $rest =~ ^stash\ ([0-9]+) ]]; then
+					stashes=${BASH_REMATCH[1]}
+				elif [[ $rest =~ ^branch\.([^ ]+)\ (.*) ]]; then
+					local cmd=${BASH_REMATCH[1]}
+					local arg=${BASH_REMATCH[2]}
+					if [[ "$cmd" == "head" ]]; then
+						current=$arg
+					elif [[ "$cmd" == "upstream" ]]; then
+						remote=${arg//[^'/']*'/'/}
+					elif [[ "$cmd" == "ab" ]] && [[ $arg =~ .([0-9]+)\ .([0-9]+) ]]; then
+						ahead="${BASH_REMATCH[1]}"
+						behind="${BASH_REMATCH[2]}"
+					fi
+				fi
+			fi
+		done < <(git status --porcelain=2 --branch --show-stash);
+
+		local gitinfo="$BOLD$PINK[";
+		if [[ -n $current ]]; then
+			local gitinfo="$gitinfo$current"
+		fi
+		if [[ $remote != $current && -n $remote ]]; then
+			local gitinfo="$gitinfo:$remote"
+		fi
+		if [[ $behind != 0 ]]; then
+			local gitinfo="$gitinfo v$behind"
+		fi
+		if [[ $ahead != 0 ]]; then
+			local gitinfo="$gitinfo ^$ahead"
+		fi
+		if [[ $stashes != 0 ]]; then
+			local gitinfo="$gitinfo *$stashes"
+		fi
+		if [[ $unmerged != 0 ]]; then
+			local gitinfo="$gitinfo ~$unmerged"
+		fi
+		if [[ $staged != 0 ]]; then
+			local gitinfo="$gitinfo +$staged"
+		fi
+		if [[ $unstaged != 0 ]]; then
+			local gitinfo="$gitinfo !$unstaged"
+		fi
+		if [[ $untracked != 0 ]]; then
+			local gitinfo="$gitinfo ?$untracked"
+		fi
+		local gitinfo="$gitinfo]$RESET "
 	else
 		local gitinfo=""
 	fi
@@ -97,8 +212,8 @@ async_prompt() {
 			local name="unnamed"
 			local version=""
 		fi
-		local pkginfo="$(printf $BOLD$YELLOW)[$NODE_PACKAGE $name$version]$(printf $RESET) "
-		local nodeinfo="$pkginfo$(printf $BOLD$GREEN)[$NODE_INFO $(nvm current | sed s/^v//)]$(printf $RESET) "
+		local pkginfo="$BOLD$YELLOW[$NODE_PACKAGE $name$version]$RESET "
+		local nodeinfo="$pkginfo$BOLD$GREEN[$NODE_INFO $(nvm current | sed s/^v//)]$RESET "
 	else
 		local nodeinfo=""
 	fi
@@ -108,8 +223,16 @@ async_prompt() {
 	local requirements_txt="$(upfind "requirements.txt")"
 	if [ -n "$setup_py" ] || [ -n "$requirements_txt" ]; then
 		if [ -n "$setup_py" ]; then
-			local name="$(grep "^\s*name\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*name\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
-			local version="$(grep "^\s*version\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*version\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
+			if [[ "$PS1_RG" == "ok" ]]; then
+				local name="$(rg "name=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
+				local version="$(rg "version=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
+			else
+				# TODO rewrite!!
+				# local name="<ripgrep>"
+				# local version=""
+				local name="$(grep "^\s*name\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*name\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
+				local version="$(grep "^\s*version\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*version\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
+			fi
 			if [ -n "$version" ]; then
 				local version=" $version"
 			fi
@@ -117,14 +240,19 @@ async_prompt() {
 			local name="unnamed"
 			local version=""
 		fi
-		local pypkginfo="$(printf $BOLD$YELLOW)[$PYTHON_PACKAGE $name$version]$(printf $RESET) "
+		local pypkginfo="$BOLD$YELLOW[$PYTHON_PACKAGE $name$version]$RESET "
 
-		if [ -f "$VIRTUAL_ENV/venv/pyvenv.cfg" ]; then
-			local pyversion="$(grep "^version\s*=\s*" "$VIRTUAL_ENV/venv/pyvenv.cfg" | head -1 | sed s/^version\\s*=\\s*//)"
+		local pyenv_cfg="$VIRTUAL_ENV/pyvenv.cfg"
+		if [ -f $pyenv_cfg ]; then
+			if [[ "$PS1_RG" == "ok" ]]; then
+				local pyversion="$(rg 'version\s*=\s*' "$pyenv_cfg" -r '' -m 1)"
+			else
+				local pyversion="$(grep "^version\s*=\s*" "$pyenv_cfg" | head -1 | sed s/^version\\s*=\\s*//)"
+			fi
 		else
 			local pyversion="system"
 		fi
-		local pyinfo="$pkginfo$(printf $BOLD$PYYELLOW)[$PYTHON_INFO $pyversion]$(printf $RESET) "
+		local pyinfo="$pkginfo$BOLD$PYYELLOW[$PYTHON_INFO $pyversion]$RESET "
 	else
 		local pypkginfo=""
 		local pyinfo=""
@@ -146,19 +274,37 @@ async_prompt() {
 	if [ -f jr ]; then
 		local buildinfo="${buildinfo}./jr "
 	fi
+	if compgen -G "*.qbs" > /dev/null; then
+		local buildinfo="${buildinfo}qbs "
+	fi
+	if compgen -G "*.pro" > /dev/null; then
+		local buildinfo="${buildinfo}qmake "
+	fi
 	if [ -n "$buildinfo" ]; then
-		local buildinfo="$(printf $BOLD$PURPLE)[${buildinfo%?}]$(printf $RESET) "
+		local buildinfo="$BOLD$PURPLE[${buildinfo%?}]$RESET "
 	fi
 
-	local curdir="$(
-		( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
-		( [ -n "$gitroot" ] && sed -E "s|^($gitroot)(.*)|\1$CYAN\2$RESET|" || cat ) |
-		sed -E "s|^$HOME|$BOLD$YELLOW~$RESET|" |
-		sed -E "s|^/home/([^/]*)|$BOLD$YELLOW~\\1$RESET|"
-	)"
+	if [[ "$PS1_RG" == "ok" ]]; then
+		local curdir="$(
+			( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
+			( [ -n "$gitroot" ] && rg "^($gitroot)(.*)" -r "\$1$CYAN\$2$RESET" || cat ) |
+			rg "^$HOME" -r "$BOLD$YELLOW~$RESET" --passthru
+		)"
+	else
+		local curdir="$(
+			( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
+			( [ -n "$gitroot" ] && sed -E "s|^($gitroot)(.*)|\1$CYAN\2$RESET|" || cat ) |
+			sed -E "s|^$HOME|$BOLD$YELLOW~$RESET|"
+		)"
+	fi
+	local curdir="$(replace_home $curdir)"
+
+	if [ ! -w $PWD ]; then
+		local curdir="$RED$READONLY$RESET $curdir"
+	fi
 
 	if [[ $command_duration -gt 1000 ]]; then
-		local runtime=" $(printf $CYAN)($EXEC_DURATION $(($command_duration / 1000))s)$(printf $RESET)"
+		local runtime=" $CYAN($EXEC_DURATION $(($command_duration / 1000))s)$RESET"
 	else
 		local runtime=""
 	fi
@@ -168,39 +314,40 @@ async_prompt() {
 		local jobinfo=""
 	else
 		if [[ "$jobs" == "1" ]]; then
-			local jobinfo="$(printf $BOLD$GREEN)[1 job]$(printf $RESET) "
+			local jobinfo="$BOLD$GREEN[1 job]$RESET "
 		else
-			local jobinfo="$(printf $BOLD$GREEN)[$jobs jobs]$(printf $RESET) "
+			local jobinfo="$BOLD$GREEN[$jobs jobs]$RESET "
 		fi
 	fi
 
 	local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
 
-	printf "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
+	echo -n "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
 
 	if [ -n "$PS1_PREFIX" ]; then
-		printf "$BOLD$RED%s$RESET " "$PS1_PREFIX"
+		echo -n "$BOLD$RED$PS1_PREFIX$RESET "
 	fi
 
-	printf "$BOLD$YELLOW(%s)$RESET " "$HOST_TEXT$HOSTNAME"
-	printf "$BOLD$BLUE[%s]$RESET " "$USER_TEXT$USER"
-	printf "%s" "$gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
-	printf "\x1b[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
+	echo -n "$BOLD$YELLOW($HOST_TEXT$HOSTNAME)$RESET $BOLD$BLUE[$USER_TEXT$USER]$RESET "
+	# if [[ "$PS1_RG" == "ok" ]]; then echo -n '^rg '; else echo -n '^grep '; fi
+	echo -n "$gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
+	echo -n "$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
 
-	printf "$CURSOR_RESTORE"
+	echo -n "$CURSOR_RESTORE"
 
 	rm "/tmp/asyncpromptpid$$"
 }
 
 get_shell_ps1() {
 	local retcode="$?"
+	local PS1_RG=$1
 
-	printf "$START_TITLE%s$END_TITLE" "$PWD"
+	echo -n "$START_TITLE$PWD$END_TITLE"
 
 	if [[ "$retcode" == "0" ]] || [[ "$retcode" == "130" ]]; then
-		local retinfo="$(printf $LIGHTGREEN)$RETURN_OK$(printf $RESET) "
+		local retinfo="$LIGHTGREEN$RETURN_OK$RESET "
 	else
-		local retinfo="$(printf $LIGHTRED)$RETURN_FAIL$(printf $RESET) "
+		local retinfo="$LIGHTRED$RETURN_FAIL$RESET "
 	fi
 
 	if [[ "$UID" == "0" ]]; then
@@ -210,13 +357,14 @@ get_shell_ps1() {
 	fi
 
 	printf "\n\n$retinfo$cursor "
-	async_prompt >/dev/null &
+	# if [[ "$PS1_RG" == "ok" ]]; then echo -n '^rg '; else echo -n '^grep '; fi
+	async_prompt $PS1_RG >/dev/null &
 	echo "$!" >"/tmp/asyncpromptpid$$"
 }
 
 
 trap "before_command_start" DEBUG
 PROMPT_COMMAND=update_info
-PS1='$(get_shell_ps1)'
+PS1="\$(get_shell_ps1 $PS1_RG)"
 
 VIRTUAL_ENV_DISABLE_PROMPT=1
