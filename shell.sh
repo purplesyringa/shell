@@ -227,8 +227,11 @@ async_prompt() {
 				local name="$(rg "name=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
 				local version="$(rg "version=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
 			else
-				local name="<ripgrep>"
-				local version=""
+				# TODO rewrite!!
+				# local name="<ripgrep>"
+				# local version=""
+				local name="$(grep "^\s*name\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*name\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
+				local version="$(grep "^\s*version\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*version\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
 			fi
 			if [ -n "$version" ]; then
 				local version=" $version"
@@ -288,12 +291,11 @@ async_prompt() {
 			rg "^$HOME" -r "$BOLD$YELLOW~$RESET" --passthru
 		)"
 	else
-		local curdir="<rg>"
-		#local curdir="$(
-		#	( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
-		#	( [ -n "$gitroot" ] && sed -E "s|^($gitroot)(.*)|\1$CYAN\2$RESET|" || cat ) |
-		#	sed -E "s|^$HOME|$BOLD$YELLOW~$RESET|"
-		#)"
+		local curdir="$(
+			( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
+			( [ -n "$gitroot" ] && sed -E "s|^($gitroot)(.*)|\1$CYAN\2$RESET|" || cat ) |
+			sed -E "s|^$HOME|$BOLD$YELLOW~$RESET|"
+		)"
 	fi
 	local curdir="$(replace_home $curdir)"
 
