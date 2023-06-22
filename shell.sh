@@ -23,7 +23,7 @@ CURSOR_RESTORE="$START_INVIS$ESC[u"
 CURSOR_UP="$START_INVIS$ESC[A"
 CURSOR_HOME="$START_INVIS$ESC[G"
 
-if [[ -z $PS1_RG ]] && (echo 1 | rg 1 >/dev/null); then
+if [[ -z $PS1_RG ]] && (echo 1 | rg 1 >/dev/null 2>/dev/null); then
 	PS1_RG=ok
 fi
 # echo rg-mode $PS1_RG.
