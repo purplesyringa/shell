@@ -233,7 +233,7 @@ async_prompt() {
 				local name="$(grep "^\s*name\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*name\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
 				local version="$(grep "^\s*version\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*version\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
 			fi
-			if [ -n "$version" ]; then
+            if [ -n "$version" ]; then
 				local version=" $version"
 			fi
 		else
@@ -280,6 +280,9 @@ async_prompt() {
 	if compgen -G "*.pro" > /dev/null; then
 		local buildinfo="${buildinfo}qmake "
 	fi
+    if [ -n "$(upfind Cargo.toml)" ]; then
+        local buildinfo="${buildinfo}cargo "
+    fi
 	if [ -n "$buildinfo" ]; then
 		local buildinfo="$BOLD$PURPLE[${buildinfo%?}]$RESET "
 	fi
