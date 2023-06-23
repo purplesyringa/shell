@@ -171,7 +171,7 @@ async_prompt() {
 
 		local gitinfo="$BOLD$PINK[";
 		if [[ -n $current ]]; then
-			local gitinfo="$gitinfo$current"
+			local gitinfo="$gitinfo$BRANCH $current"
 		fi
 		if [[ $remote != $current && -n $remote ]]; then
 			local gitinfo="$gitinfo:$remote"
