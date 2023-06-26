@@ -152,7 +152,7 @@ async_prompt() {
         while IFS= read -a line; do
             if [[ $line =~ ^'?' ]]; then
                 untracked=$((untracked + 1))
-            elif [[ $line =~ ^[12]\ (AA|AU|DD|DU|UA|UD|UU) ]]; then
+            elif [[ $line =~ ^u ]]; then
                 unmerged=$((unmerged + 1))
             elif [[ $line =~ ^[12]\ [MTADRC]\. ]]; then
                 staged=$((staged + 1))
