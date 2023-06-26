@@ -57,8 +57,16 @@ else
     READONLY=""
 fi
 
-INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
 
+colorize() {
+    local color="$ESC[$((0x$(sha256sum <<< "$1" | head -c 2) % 7 + 91))m"
+    printf "$START_INVIS$color$END_INVIS$1$RESET"
+}
+
+HOSTUSER="$BOLD$YELLOW($HOST_TEXT$(colorize $HOSTNAME)$BOLD$YELLOW)$RESET $BOLD$BLUE[$USER_TEXT$(colorize $USER)$BOLD$BLUE]$RESET"
+
+
+INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
 
 replace_home() {
     local answer=$1
@@ -331,9 +339,8 @@ async_prompt() {
         echo -n "$BOLD$RED$PS1_PREFIX$RESET "
     fi
 
-    echo -n "$BOLD$YELLOW($HOST_TEXT$HOSTNAME)$RESET $BOLD$BLUE[$USER_TEXT$USER]$RESET "
     # if [[ "$PS1_RG" == "ok" ]]; then echo -n '^rg '; else echo -n '^grep '; fi
-    echo -n "$gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
+    echo -n "$HOSTUSER $gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
     echo -n "$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
 
     echo -n "$CURSOR_RESTORE"
