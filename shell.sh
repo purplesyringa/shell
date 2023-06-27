@@ -293,18 +293,6 @@ async_prompt() {
         local runtime=""
     fi
 
-    # TODO fix this
-    local jobs="$(jobs | wc -l)"
-    if [[ "$jobs" == "0" ]]; then
-        local jobinfo=""
-    else
-        if [[ "$jobs" == "1" ]]; then
-            local jobinfo="$BOLD$GREEN[1 job]$RESET "
-        else
-            local jobinfo="$BOLD$GREEN[$jobs jobs]$RESET "
-        fi
-    fi
-
     local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
 
     echo -n "$CURSOR_SAVE$CURSOR_UP$CURSOR_HOME"
@@ -313,7 +301,7 @@ async_prompt() {
         echo -n "$BOLD$RED$PS1_PREFIX$RESET "
     fi
 
-    echo -n "$HOSTUSER $gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
+    echo -n "$HOSTUSER $gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$curdir$runtime"
     echo -n "$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
 
     echo -n "$CURSOR_RESTORE"
@@ -338,8 +326,20 @@ get_shell_ps1() {
         local cursor="$BOLD$GREEN\$$RESET"
     fi
 
-    printf "\n\n$retinfo$cursor "
-    async_prompt >/dev/null &
+    # TODO maybe update?
+    local jobs="$(jobs | wc -l)"
+    if [[ "$jobs" == "0" ]]; then
+        local jobinfo=""
+    else
+        if [[ "$jobs" == "1" ]]; then
+            local jobinfo="$BOLD$GREEN[1 job]$RESET "
+        else
+            local jobinfo="$BOLD$GREEN[$jobs jobs]$RESET "
+        fi
+    fi
+
+    printf "\n$HOSTUSER\n$jobinfo$retinfo$cursor "
+    async_prompt $PS1_RG >/dev/null &
     echo "$!" >"/tmp/asyncpromptpid$$"
 }
 
