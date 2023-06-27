@@ -1,3 +1,9 @@
+if ! command -v rg > /dev/null; then
+    echo "ripgrep is needed for 'shell' to run; nothing applied"
+    return 1
+fi
+
+
 START_INVIS="$(echo -ne '\x01')"
 END_INVIS="$(echo -ne '\x02')"
 ESC="$(echo -ne '\e')"
@@ -22,14 +28,6 @@ CURSOR_SAVE="$START_INVIS$ESC[s"
 CURSOR_RESTORE="$START_INVIS$ESC[u"
 CURSOR_UP="$START_INVIS$ESC[A"
 CURSOR_HOME="$START_INVIS$ESC[G"
-
-if [[ -z $PS1_RG ]] && (echo 1 | rg 1 >/dev/null 2>/dev/null); then
-    PS1_RG=ok
-fi
-# echo rg-mode $PS1_RG.
-# if [[ "$PS1_RG" == "ok" ]]; then
-#     echo ripgrep IS used
-# fi
 
 if [ "$PS1_MODE" == "text" ]; then
     BRANCH="on"
@@ -120,8 +118,6 @@ update_info() {
 }
 
 async_prompt() {
-    local PS1_RG="$1"
-
     exec >&2
 
     local gitroot="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -231,19 +227,8 @@ async_prompt() {
     local requirements_txt="$(upfind "requirements.txt")"
     if [ -n "$setup_py" ] || [ -n "$requirements_txt" ]; then
         if [ -n "$setup_py" ]; then
-            if [[ "$PS1_RG" == "ok" ]]; then
-                local name="$(rg "name=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
-                local version="$(rg "version=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
-            else
-                # TODO rewrite!!
-                # local name="<ripgrep>"
-                # local version=""
-                local name="$(grep "^\s*name\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*name\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
-                local version="$(grep "^\s*version\s*=\s*\"[^\"]*\"" "$setup_py" | sed -E "s/^\s*version\s*=\s*\"([^\"]*)\".*/\1/" | head -1)"
-            fi
-                if [ -n "$version" ]; then
-                local version=" $version"
-            fi
+            local name="$(rg "name=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
+            local version="$(rg "version=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
         else
             local name="unnamed"
             local version=""
@@ -252,11 +237,7 @@ async_prompt() {
 
         local pyenv_cfg="$VIRTUAL_ENV/pyvenv.cfg"
         if [ -f "$pyenv_cfg" ]; then
-            if [[ "$PS1_RG" == "ok" ]]; then
-                local pyversion="$(rg 'version\s*=\s*' "$pyenv_cfg" -r '' -m 1)"
-            else
-                local pyversion="$(grep "^version\s*=\s*" "$pyenv_cfg" | head -1 | sed s/^version\\s*=\\s*//)"
-            fi
+            local pyversion="$(rg 'version\s*=\s*' "$pyenv_cfg" -r '' -m 1)"
         else
             local pyversion="system"
         fi
@@ -295,19 +276,11 @@ async_prompt() {
         local buildinfo="$BOLD$PURPLE[${buildinfo%?}]$RESET "
     fi
 
-    if [[ "$PS1_RG" == "ok" ]]; then
-        local curdir="$(
-            ( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
-            ( [ -n "$gitroot" ] && rg "^($gitroot)(.*)" -r "\$1$CYAN\$2$RESET" || cat ) |
-            rg "^$HOME" -r "$BOLD$YELLOW~$RESET" --passthru
-        )"
-    else
-        local curdir="$(
-            ( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
-            ( [ -n "$gitroot" ] && sed -E "s|^($gitroot)(.*)|\1$CYAN\2$RESET|" || cat ) |
-            sed -E "s|^$HOME|$BOLD$YELLOW~$RESET|"
-        )"
-    fi
+    local curdir="$(
+        ( [[ "$PWD" == "$gitroot" ]] && echo "$PWD/" || echo "$PWD" ) |
+        ( [ -n "$gitroot" ] && rg "^($gitroot)(.*)" -r "\$1$CYAN\$2$RESET" || cat ) |
+        rg "^$HOME" -r "$BOLD$YELLOW~$RESET" --passthru
+    )"
     local curdir="$(replace_home "$curdir")"
 
     if [ ! -w "$PWD" ]; then
@@ -340,7 +313,6 @@ async_prompt() {
         echo -n "$BOLD$RED$PS1_PREFIX$RESET "
     fi
 
-    # if [[ "$PS1_RG" == "ok" ]]; then echo -n '^rg '; else echo -n '^grep '; fi
     echo -n "$HOSTUSER $gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
     echo -n "$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
 
@@ -351,7 +323,6 @@ async_prompt() {
 
 get_shell_ps1() {
     local retcode="$?"
-    local PS1_RG="$1"
 
     echo -n "$START_TITLE$PWD$END_TITLE"
 
@@ -368,14 +339,13 @@ get_shell_ps1() {
     fi
 
     printf "\n\n$retinfo$cursor "
-    # if [[ "$PS1_RG" == "ok" ]]; then echo -n '^rg '; else echo -n '^grep '; fi
-    async_prompt $PS1_RG >/dev/null &
+    async_prompt >/dev/null &
     echo "$!" >"/tmp/asyncpromptpid$$"
 }
 
 
 trap "before_command_start" DEBUG
 PROMPT_COMMAND=update_info
-PS1="\$(get_shell_ps1 $PS1_RG)"
+PS1="\$(get_shell_ps1)"
 
 VIRTUAL_ENV_DISABLE_PROMPT=1

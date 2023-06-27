@@ -13,7 +13,11 @@ Execute in bash shell or add to your `.bashrc`.
 
 Two modes are available --- "nerdfont" and "text", former is default, latter is toggled by setting `PS1_MODE=text` before applying prompt.
 
-Can use ripgrep if available (default), or if passed `PS1_RG=none` (anything other than `ok` does the job too) uses grep+sed.
+## Requirements
+
+- `bash`
+- `ripgrep`
+- maybe something else
 
 ## What does
 
