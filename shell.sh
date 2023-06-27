@@ -106,7 +106,7 @@ get_current_time() {
 before_command_start() {
     async_prompt_pid=$(cat "/tmp/asyncpromptpid$$" 2>/dev/null)
     if [ -n "$async_prompt_pid" ]; then
-        kill "$async_prompt_pid"
+        kill "$async_prompt_pid" 2>/dev/null
     fi
     start_time="${start_time:-"$(get_current_time)"}"
     previous_pwd_tmp="${previous_pwd_tmp:-"$PWD"}"
