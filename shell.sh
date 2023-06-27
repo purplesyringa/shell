@@ -338,7 +338,7 @@ get_shell_ps1() {
         fi
     fi
 
-    printf "\n\n$jobinfo$retinfo$cursor "
+    printf "\n$HOSTUSER\n$jobinfo$retinfo$cursor "
     async_prompt $PS1_RG >/dev/null &
     echo "$!" >"/tmp/asyncpromptpid$$"
 }
