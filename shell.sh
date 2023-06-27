@@ -57,32 +57,40 @@ else
     READONLY=""
 fi
 
+
+colorize() {
+    local color="$ESC[$((0x$(sha256sum <<< "$1" | head -c 2) % 7 + 91))m"
+    printf "$START_INVIS$color$END_INVIS$1$RESET"
+}
+
+HOSTUSER="$BOLD$YELLOW($HOST_TEXT$(colorize "$HOSTNAME")$BOLD$YELLOW)$RESET $BOLD$BLUE[$USER_TEXT$(colorize "$USER")$BOLD$BLUE]$RESET"
+
+
 INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
 
-
 replace_home() {
-    local answer=$1
     while IFS= read -r line; do
-        if [[ $line =~ ([^:]*):([^:]*:){4}([^:]*):([^:]*) ]]; then
+        if [[ "$line" =~ ([^:]*):([^:]*:){4}([^:]*):([^:]*) ]]; then
             local homedir="${BASH_REMATCH[3]}"
             local username="${BASH_REMATCH[1]}"
             local userpath="$BOLD$YELLOW~$username$RESET"
-            if [[ ! $homedir =~ $INVALID_HOMES ]]; then
+            if [[ ! "$homedir" =~ $INVALID_HOMES ]]; then
                 local path="$1"
                 local stripped_path="${path#$homedir}"
                 if [[ "$stripped_path" != "$path" ]]; then
-                    answer="$userpath$stripped_path"
+                    echo "$userpath$stripped_path"
+                    return
                 fi
             fi
         fi
     done < /etc/passwd
-    echo $answer
+    echo "$1"
 }
 
 upfind() {
     local path="$PWD"
     while [[ "$path" != "/" ]] && [[ ! -e "$path/$1" ]]; do
-        local path="$(realpath "$path"/..)"
+        local path="$(realpath "$path/..")"
     done
     if [[ -e "$path/$1" ]]; then
         echo "$path/$1"
@@ -98,7 +106,7 @@ get_current_time() {
 before_command_start() {
     async_prompt_pid=$(cat "/tmp/asyncpromptpid$$" 2>/dev/null)
     if [ -n "$async_prompt_pid" ]; then
-        kill "$async_prompt_pid"
+        kill "$async_prompt_pid" 2>/dev/null
     fi
     start_time="${start_time:-"$(get_current_time)"}"
     previous_pwd_tmp="${previous_pwd_tmp:-"$PWD"}"
@@ -112,7 +120,7 @@ update_info() {
 }
 
 async_prompt() {
-    local PS1_RG=$1
+    local PS1_RG="$1"
 
     exec >&2
 
@@ -142,38 +150,38 @@ async_prompt() {
         local untracked=0
 
         while IFS= read -a line; do
-            if [[ $line =~ ^'?' ]]; then
+            if [[ "$line" =~ ^'?' ]]; then
                 untracked=$((untracked + 1))
-            elif [[ $line =~ ^[12]\ (AA|AU|DD|DU|UA|UD|UU) ]]; then
+            elif [[ "$line" =~ ^u ]]; then
                 unmerged=$((unmerged + 1))
-            elif [[ $line =~ ^[12]\ [MTADRC]\. ]]; then
+            elif [[ "$line" =~ ^[12]\ [MTADRC]\. ]]; then
                 staged=$((staged + 1))
-            elif [[ $line =~ ^[12]\ [\.MTADRCU]{2} ]]; then
+            elif [[ "$line" =~ ^[12]\ [\.MTADRCU]{2} ]]; then
                 unstaged=$((unstaged + 1))
-            elif [[ $line =~ ^#\ (.*) ]]; then
-                local rest=${BASH_REMATCH[1]}
-                if [[ $rest =~ ^stash\ ([0-9]+) ]]; then
-                    stashes=${BASH_REMATCH[1]}
-                elif [[ $rest =~ ^branch\.([^ ]+)\ (.*) ]]; then
-                    local cmd=${BASH_REMATCH[1]}
-                    local arg=${BASH_REMATCH[2]}
+            elif [[ "$line" =~ ^#\ (.*) ]]; then
+                local rest="${BASH_REMATCH[1]}"
+                if [[ "$rest" =~ ^stash\ ([0-9]+) ]]; then
+                    stashes="${BASH_REMATCH[1]}"
+                elif [[ "$rest" =~ ^branch\.([^ ]+)\ (.*) ]]; then
+                    local cmd="${BASH_REMATCH[1]}"
+                    local arg="${BASH_REMATCH[2]}"
                     if [[ "$cmd" == "head" ]]; then
-                        current=$arg
+                        current="$arg"
                     elif [[ "$cmd" == "upstream" ]]; then
-                        remote=${arg//[^'/']*'/'/}
-                    elif [[ "$cmd" == "ab" ]] && [[ $arg =~ .([0-9]+)\ .([0-9]+) ]]; then
+                        remote="${arg//[^'/']*'/'/}"
+                    elif [[ "$cmd" == "ab" ]] && [[ "$arg" =~ .([0-9]+)\ .([0-9]+) ]]; then
                         ahead="${BASH_REMATCH[1]}"
                         behind="${BASH_REMATCH[2]}"
                     fi
                 fi
             fi
-        done < <(git status --porcelain=2 --branch --show-stash);
+        done < <(git status --porcelain=2 --branch --show-stash)
 
-        local gitinfo="$BOLD$PINK[";
-        if [[ -n $current ]]; then
+        local gitinfo="$BOLD$PINK["
+        if [[ -n "$current" ]]; then
             local gitinfo="$gitinfo$BRANCH $current"
         fi
-        if [[ $remote != $current && -n $remote ]]; then
+        if [[ "$remote" != "$current" && -n "$remote" ]]; then
             local gitinfo="$gitinfo:$remote"
         fi
         if [[ $behind != 0 ]]; then
@@ -224,8 +232,8 @@ async_prompt() {
     if [ -n "$setup_py" ] || [ -n "$requirements_txt" ]; then
         if [ -n "$setup_py" ]; then
             if [[ "$PS1_RG" == "ok" ]]; then
-                local name="$(rg "name=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
-                local version="$(rg "version=['\"](.+)['\"]" $setup_py -or '$1' -m 1)"
+                local name="$(rg "name=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
+                local version="$(rg "version=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
             else
                 # TODO rewrite!!
                 # local name="<ripgrep>"
@@ -243,7 +251,7 @@ async_prompt() {
         local pypkginfo="$BOLD$YELLOW[$PYTHON_PACKAGE $name$version]$RESET "
 
         local pyenv_cfg="$VIRTUAL_ENV/pyvenv.cfg"
-        if [ -f $pyenv_cfg ]; then
+        if [ -f "$pyenv_cfg" ]; then
             if [[ "$PS1_RG" == "ok" ]]; then
                 local pyversion="$(rg 'version\s*=\s*' "$pyenv_cfg" -r '' -m 1)"
             else
@@ -300,9 +308,9 @@ async_prompt() {
             sed -E "s|^$HOME|$BOLD$YELLOW~$RESET|"
         )"
     fi
-    local curdir="$(replace_home $curdir)"
+    local curdir="$(replace_home "$curdir")"
 
-    if [ ! -w $PWD ]; then
+    if [ ! -w "$PWD" ]; then
         local curdir="$RED$READONLY$RESET $curdir"
     fi
 
@@ -312,6 +320,7 @@ async_prompt() {
         local runtime=""
     fi
 
+    # TODO fix this
     local jobs="$(jobs | wc -l)"
     if [[ "$jobs" == "0" ]]; then
         local jobinfo=""
@@ -331,9 +340,8 @@ async_prompt() {
         echo -n "$BOLD$RED$PS1_PREFIX$RESET "
     fi
 
-    echo -n "$BOLD$YELLOW($HOST_TEXT$HOSTNAME)$RESET $BOLD$BLUE[$USER_TEXT$USER]$RESET "
     # if [[ "$PS1_RG" == "ok" ]]; then echo -n '^rg '; else echo -n '^grep '; fi
-    echo -n "$gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
+    echo -n "$HOSTUSER $gitinfo$nodeinfo$pypkginfo$pyinfo$buildinfo$jobinfo$curdir$runtime"
     echo -n "$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET"
 
     echo -n "$CURSOR_RESTORE"
@@ -343,11 +351,11 @@ async_prompt() {
 
 get_shell_ps1() {
     local retcode="$?"
-    local PS1_RG=$1
+    local PS1_RG="$1"
 
     echo -n "$START_TITLE$PWD$END_TITLE"
 
-    if [[ "$retcode" == "0" ]] || [[ "$retcode" == "130" ]]; then
+    if [[ $retcode -eq 0 ]] || [[ $retcode -eq 130 ]]; then
         local retinfo="$LIGHTGREEN$RETURN_OK$RESET "
     else
         local retinfo="$LIGHTRED$RETURN_FAIL$RESET "
