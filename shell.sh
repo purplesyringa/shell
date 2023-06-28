@@ -38,8 +38,8 @@ if [ "$PS1_MODE" == "text" ]; then
     EXEC_DURATION="took"
     RETURN_OK="OK"
     RETURN_FAIL="Failed"
-    HOST_TEXT="at "
-    USER_TEXT="as "
+    HOST_TEXT="at"
+    USER_TEXT="as"
     READONLY="R/O"
 else
     BRANCH=""
@@ -50,8 +50,8 @@ else
     EXEC_DURATION=""
     RETURN_OK="✓"
     RETURN_FAIL="✗"
-    HOST_TEXT=""
-    USER_TEXT=""
+    HOST_TEXT="󰒋"
+    USER_TEXT=""
     READONLY=""
 fi
 
@@ -94,7 +94,7 @@ colorize() {
     fi
 }
 
-HOSTUSER="$BOLD$YELLOW($HOST_TEXT$(colorize "$HOSTNAME")$BOLD$YELLOW)$RESET $BOLD$BLUE[$USER_TEXT$(colorize "$USER")$BOLD$BLUE]$RESET"
+HOSTUSER="$BOLD$YELLOW($HOST_TEXT $(colorize "$HOSTNAME")$BOLD$YELLOW)$RESET $BOLD$BLUE[$USER_TEXT $(colorize "$USER")$BOLD$BLUE]$RESET"
 
 
 INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
