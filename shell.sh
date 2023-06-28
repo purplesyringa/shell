@@ -57,8 +57,12 @@ fi
 
 
 colorize() {
-    local color="$ESC[$((0x$(sha256sum <<< "$1" | head -c 2) % 7 + 91))m"
-    printf "$START_INVIS$color$END_INVIS$1$RESET"
+    if [[ "$1" == "root" ]]; then
+        printf "$RED$1$RESET"
+    else
+        local color="$ESC[$((0x$(sha256sum <<< "$1" | head -c 2) % 6 + 32))m"
+        printf "$START_INVIS$color$END_INVIS$1$RESET"
+    fi
 }
 
 HOSTUSER="$BOLD$YELLOW($HOST_TEXT$(colorize "$HOSTNAME")$BOLD$YELLOW)$RESET $BOLD$BLUE[$USER_TEXT$(colorize "$USER")$BOLD$BLUE]$RESET"
