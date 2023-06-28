@@ -56,12 +56,41 @@ else
 fi
 
 
+# How to "colorize" a string
+#
+# using colors table
+#   F   C   A   6   0
+# 255 203 153 100   0
+# -> scientific "pick" moment
+#
+# allow (block too dark and too red)
+# FCA60 FCA6 FCA60
+# FCA60 0 FCA
+# 
+# block (r06 r00)
+# 
+# total 115 of 5^3 = 125, ban 10 highest
+# store in BGR (ban 00r, 06r)
+# 
+# then for hash from 0 to 114
+# B = hash / 25
+# G = hash / 5 % 5
+# R = hash % 5
+COLOR_TABLE=(255 203 153 100 0)
+
 colorize() {
     if [[ "$1" == "root" ]]; then
         printf "$RED$1$RESET"
     else
-        local color="$ESC[$((0x$(sha256sum <<< "$1" | head -c 2) % 6 + 32))m"
-        printf "$START_INVIS$color$END_INVIS$1$RESET"
+        local hash="$((0x$(sha256sum <<< "$1" | head -c 4) % 115))"
+        local _r="$(($hash / 25))"
+        local _g="$(($hash / 5 % 5))"
+        local _b="$(($hash % 5))"
+        local r="${COLOR_TABLE[$_r]}"
+        local g="${COLOR_TABLE[$_g]}"
+        local b="${COLOR_TABLE[$_b]}"
+        local set_color="$ESC[38;2;${r};${g};${b}m"
+        printf "$START_INVIS$set_color$END_INVIS$1$RESET"
     fi
 }
 
