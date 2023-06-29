@@ -38,8 +38,8 @@ if [ "$PS1_MODE" == "text" ]; then
     EXEC_DURATION="took"
     RETURN_OK="OK"
     RETURN_FAIL="Failed"
-    HOST_TEXT="at "
-    USER_TEXT="as "
+    HOST_TEXT="at"
+    USER_TEXT="as"
     READONLY="R/O"
 else
     BRANCH=""
@@ -50,18 +50,51 @@ else
     EXEC_DURATION=""
     RETURN_OK="✓"
     RETURN_FAIL="✗"
-    HOST_TEXT=""
-    USER_TEXT=""
+    HOST_TEXT="󰒋"
+    USER_TEXT=""
     READONLY=""
 fi
 
 
+# How to "colorize" a string
+#
+# using colors table
+#   F   C   A   6   0
+# 255 203 153 100   0
+# -> scientific "pick" moment
+#
+# allow (block too dark and too red)
+# FCA60 FCA6 FCA60
+# FCA60 0 FCA
+# 
+# block (r06 r00)
+# 
+# total 115 of 5^3 = 125, ban 10 highest
+# store in BGR (ban 00r, 06r)
+# 
+# then for hash from 0 to 114
+# B = hash / 25
+# G = hash / 5 % 5
+# R = hash % 5
+COLOR_TABLE=(255 203 153 100 0)
+
 colorize() {
-    local color="$ESC[$((0x$(sha256sum <<< "$1" | head -c 2) % 7 + 91))m"
-    printf "$START_INVIS$color$END_INVIS$1$RESET"
+    if [[ "$1" == "root" ]]; then
+        printf "$RED$1$RESET"
+    else
+        local hash="$((0x$(sha256sum <<< "$1" | head -c 4) % 115))"
+        local _r="$(($hash / 25))"
+        local _g="$(($hash / 5 % 5))"
+        local _b="$(($hash % 5))"
+        local r="${COLOR_TABLE[$_r]}"
+        local g="${COLOR_TABLE[$_g]}"
+        local b="${COLOR_TABLE[$_b]}"
+        local set_color="$ESC[38;2;${r};${g};${b}m"
+        printf "$START_INVIS$set_color$END_INVIS$1$RESET"
+    fi
 }
 
-HOSTUSER="$BOLD$YELLOW($HOST_TEXT$(colorize "$HOSTNAME")$BOLD$YELLOW)$RESET $BOLD$BLUE[$USER_TEXT$(colorize "$USER")$BOLD$BLUE]$RESET"
+HOSTUSER="$BOLD$YELLOW($HOST_TEXT $(colorize "$HOSTNAME")$BOLD$YELLOW)$RESET $BOLD$BLUE[$USER_TEXT $(colorize "$USER")$BOLD$BLUE]$RESET"
 
 
 INVALID_HOMES='^(/$|(/bin|/dev|/proc|/usr|/var)[/$])'
@@ -338,7 +371,9 @@ get_shell_ps1() {
         fi
     fi
 
-    printf "\n$HOSTUSER\n$jobinfo$retinfo$cursor "
+    local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
+    printf "\n$HOSTUSER$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET\n$jobinfo$retinfo$cursor "
+
     async_prompt $PS1_RG >/dev/null &
     echo "$!" >"/tmp/asyncpromptpid$$"
 }
