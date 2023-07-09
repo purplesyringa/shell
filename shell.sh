@@ -374,7 +374,7 @@ get_shell_ps1() {
     local cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
     printf "\n$HOSTUSER$ESC[$(($COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET\n$jobinfo$retinfo$cursor "
 
-    async_prompt $PS1_RG >/dev/null &
+    async_prompt >/dev/null &
     echo "$!" >"/tmp/asyncpromptpid$$"
 }
 
