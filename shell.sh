@@ -267,7 +267,7 @@ async_prompt() {
         local version
         if [ -n "$setup_py" ]; then
             name="$(rg "name=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
-            version="$(rg "version=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
+            version=" $(rg "version=['\"](.+)['\"]" "$setup_py" -or '$1' -m 1)"
         else
             name="unnamed"
             version=""
