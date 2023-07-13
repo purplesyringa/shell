@@ -49,7 +49,8 @@ else
     EXEC_DURATION=""
     RETURN_OK="✓"
     RETURN_FAIL="✗"
-    HOST_TEXT="󰒋"
+    #HOST_TEXT="󰒋"
+    HOST_TEXT="$(hostnamectl | rg '\s+Chassis: [a-z]+ (.+)' --replace '$1')"
     USER_TEXT=""
     READONLY=""
 fi
