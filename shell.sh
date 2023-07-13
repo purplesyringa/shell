@@ -49,7 +49,8 @@ else
     EXEC_DURATION=""
     RETURN_OK="✓"
     RETURN_FAIL="✗"
-    HOST_TEXT="󰒋"
+    #HOST_TEXT="󰒋"
+    HOST_TEXT="$(hostnamectl | rg '\s+Chassis: [a-z]+ (.+)' --replace '$1')"
     USER_TEXT=""
     READONLY=""
 fi
@@ -386,7 +387,7 @@ get_shell_ps1() {
     cur_date="$(LC_TIME=en_US.UTF-8 date +'%a, %Y-%b-%d, %H:%M:%S in %Z')"
     printf "\n%s\n%s" "$HOSTUSER${ESC}[$((COLUMNS - ${#cur_date}))G$GREY$cur_date$RESET" "$jobinfo$retinfo$cursor "
 
-    async_prompt "$PS1_RG" >/dev/null &
+    async_prompt >/dev/null &
     echo "$!" >"/tmp/asyncpromptpid$$"
 }
 
