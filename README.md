@@ -2,6 +2,8 @@
 
 Alisa Sireneva's dynamic replacement for bash's PS1 written mainly in bash.
 
+> This project is no longer actively maintained. Consider using [Yuki's Rust port instead](https://github.com/yuki0iq/bash-status-line-2).
+
 ## Usage
 
 ```
